@@ -11,7 +11,10 @@ import {
   FlatList, 
   Image,
   ActivityIndicator,
-  RefreshControl
+  RefreshControl,
+  Modal,
+  TextInput,
+  Alert
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
@@ -31,7 +34,8 @@ export default function HomeScreen() {
   const { 
     tasks, 
     isLoadingTasks, 
-    refreshTasks, 
+    refreshTasks,
+    createTask,
     updateTask,
     jobs,
     isLoadingJobs,
@@ -42,7 +46,10 @@ export default function HomeScreen() {
   const [jobSectionExpanded, setJobSectionExpanded] = useState(true)
   const [sidebarVisible, setSidebarVisible] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
- 
+  const [isCreateModalVisible, setIsCreateModalVisible] = useState(false)
+  const [newTaskTitle, setNewTaskTitle] = useState("")
+  const [newTaskDescription, setNewTaskDescription] = useState("")
+
   const sidebarAnim = useRef(new Animated.Value(-300)).current
   const overlayAnim = useRef(new Animated.Value(0)).current
 
@@ -68,6 +75,28 @@ export default function HomeScreen() {
       : TASK_STATUS.COMPLETED
     
     await updateTask(taskId, { status: newStatus })
+  }
+
+  const handleCreateTask = async () => {
+    if (!newTaskTitle.trim()) {
+      Alert.alert('Error', 'Please enter a task title')
+      return
+    }
+
+    try {
+      await createTask({
+        title: newTaskTitle.trim(),
+        description: newTaskDescription.trim() || undefined,
+        status: TASK_STATUS.PENDING
+      })
+      
+      // Clear form and close modal
+      setNewTaskTitle("")
+      setNewTaskDescription("")
+      setIsCreateModalVisible(false)
+    } catch (error) {
+      console.error('Failed to create task:', error)
+    }
   }
 
   const toggleJobSection = () => {
@@ -207,7 +236,10 @@ export default function HomeScreen() {
       </ScrollView>
 
       {/* Floating Action Button */}
-      <TouchableOpacity style={styles.fab}>
+      <TouchableOpacity 
+        style={styles.fab}
+        onPress={() => setIsCreateModalVisible(true)}
+      >
         <LinearGradient
           colors={[COLORS.neonTeal, "#00CCAA"]}
           style={styles.fabGradient}
@@ -217,6 +249,54 @@ export default function HomeScreen() {
           <Plus size={24} color={COLORS.darkBackground} />
         </LinearGradient>
       </TouchableOpacity>
+
+      {/* Create Task Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isCreateModalVisible}
+        onRequestClose={() => setIsCreateModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Create New Task</Text>
+            
+            <TextInput
+              style={styles.input}
+              placeholder="Task Title"
+              placeholderTextColor="#9CA3AF"
+              value={newTaskTitle}
+              onChangeText={setNewTaskTitle}
+            />
+            
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              placeholder="Description (optional)"
+              placeholderTextColor="#9CA3AF"
+              value={newTaskDescription}
+              onChangeText={setNewTaskDescription}
+              multiline
+              numberOfLines={4}
+            />
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.cancelButton]} 
+                onPress={() => setIsCreateModalVisible(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.createButton]} 
+                onPress={handleCreateTask}
+              >
+                <Text style={styles.createButtonText}>Create Task</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Sidebar Overlay */}
       {sidebarVisible && (
@@ -361,6 +441,67 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: "#000000",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#2D2D2D',
+    borderRadius: 16,
+    padding: 20,
+    width: '90%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontFamily: 'Poppins-Bold',
+    fontSize: 24,
+    color: '#FFFFFF',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  input: {
+    backgroundColor: '#333333',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    color: '#FFFFFF',
+    fontFamily: 'Poppins-Regular',
+    fontSize: 16,
+  },
+  textArea: {
+    height: 100,
+    textAlignVertical: 'top',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginHorizontal: 5,
+  },
+  cancelButton: {
+    backgroundColor: '#4B5563',
+  },
+  createButton: {
+    backgroundColor: COLORS.neonTeal,
+  },
+  cancelButtonText: {
+    color: '#FFFFFF',
+    fontFamily: 'Poppins-Medium',
+    fontSize: 16,
+  },
+  createButtonText: {
+    color: COLORS.darkBackground,
+    fontFamily: 'Poppins-Bold',
+    fontSize: 16,
   },
 })
 

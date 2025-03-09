@@ -73,14 +73,22 @@ class ApiError extends Error {
   }
 }
 
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000; // 1 second
+const TIMEOUT = 10000; // 10 seconds
+
+// Helper function to delay execution
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 /**
- * Base API request function with authentication
+ * Base API request function with authentication and retry logic
  */
 async function apiRequest<T>(
   endpoint: string,
   method: string = 'GET',
   body?: any,
-  requiresAuth: boolean = true
+  requiresAuth: boolean = true,
+  retryCount: number = 0
 ): Promise<T> {
   try {
     // Build request headers
@@ -105,27 +113,86 @@ async function apiRequest<T>(
       options.body = JSON.stringify(body);
     }
 
-    // Make the request
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
-    const data = await response.json();
+    const url = `${API_BASE_URL}${endpoint}`;
+    console.log(`Making API request to: ${url} (attempt ${retryCount + 1})`);
 
-    // Handle error responses
-    if (!response.ok) {
-      throw new ApiError(
-        data.message || 'An error occurred',
-        response.status,
-        data.errors
-      );
+    try {
+      // Make the request with timeout
+      const response = await Promise.race([
+        fetch(url, options),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Request timeout')), TIMEOUT)
+        )
+      ]) as Response;
+
+      const data = await response.json();
+
+      // Handle error responses
+      if (!response.ok) {
+        console.log('API error response:', data);
+        throw new ApiError(
+          data.message || 'An error occurred',
+          response.status,
+          data.errors
+        );
+      }
+
+      console.log('API request successful:', endpoint);
+      return data as T;
+    } catch (error: any) {
+      // Handle network errors with retry logic
+      if (retryCount < MAX_RETRIES && (
+        error.message === 'Request timeout' || 
+        error instanceof TypeError || 
+        error.message.includes('Network request failed')
+      )) {
+        console.log(`Retry attempt ${retryCount + 1} of ${MAX_RETRIES}`);
+        await delay(RETRY_DELAY * (retryCount + 1));
+        return apiRequest(endpoint, method, body, requiresAuth, retryCount + 1);
+      }
+      
+      if (error.message === 'Request timeout') {
+        console.log('Request timed out - likely offline');
+        throw new ApiError('Network error', 408);
+      }
+
+      throw error;
     }
-
-    return data as T;
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof ApiError) {
       throw error;
     }
+    // Categorize network errors for better handling
+    if ((error instanceof TypeError && error.message.includes('Network request failed')) ||
+        error.message.includes('Network request failed')) {
+      console.log('Network request failed - device is likely offline');
+      throw new ApiError('Network error', 503);
+    }
+    console.log('General API error:', error);
     throw new ApiError('Network error', 500);
   }
 }
+
+// Health check API
+export const healthApi = {
+  /**
+   * Check API server health
+   */
+  checkHealth: async (): Promise<{ status: string }> => {
+    try {
+      const response = await apiRequest<{ status: string }>(
+        ENDPOINTS.HEALTH,
+        'GET',
+        undefined,
+        false
+      );
+      return response;
+    } catch (error) {
+      console.log('Health check failed:', error);
+      throw error;
+    }
+  },
+};
 
 // Auth API
 export const authApi = {

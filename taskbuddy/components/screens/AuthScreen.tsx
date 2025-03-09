@@ -37,48 +37,62 @@ export default function AuthScreen() {
 
   const handleAuthentication = async () => {
     try {
+      setAuthError("")
+
       // Check if device has biometric hardware
       const hasHardware = await LocalAuthentication.hasHardwareAsync()
       if (!hasHardware) {
-        // If no biometric hardware, just authenticate with device ID
-        await authenticate()
-        router.replace("/(app)/home")
+        setAuthError("This device doesn't support biometric authentication")
         return
       }
 
       // Check if biometrics are enrolled
       const isEnrolled = await LocalAuthentication.isEnrolledAsync()
       if (!isEnrolled) {
-        // If no biometrics enrolled, just authenticate with device ID
-        await authenticate()
-        router.replace("/(app)/home")
+        setAuthError("Please set up fingerprint or face ID in your device settings")
         return
       }
 
       // Authenticate with biometrics
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: "Authenticate to access TaskBuddy",
-        fallbackLabel: "Use passcode",
+        promptMessage: "Verify it's you",
+        fallbackLabel: "Use device passcode",
+        disableDeviceFallback: false,
       })
 
       if (result.success) {
-        // If biometric auth succeeds, authenticate with the API
+        // If biometric auth succeeds, proceed with API authentication
         await authenticate()
         router.replace("/(app)/home")
       } else {
-        setAuthError(result.error || "Authentication failed")
+        setAuthError("Authentication failed. Please try again.")
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Authentication error:', error)
-      setAuthError("An error occurred during authentication")
+      if (error.message === 'User not found') {
+        // This shouldn't happen here, but just in case
+        router.replace("/(auth)/signup")
+      } else {
+        setAuthError("Authentication failed. Please try again.")
+      }
     }
   }
 
   const handlePasswordAuth = async () => {
     try {
-      // Skip biometrics and just authenticate with device ID
-      await authenticate()
-      router.replace("/(app)/home")
+      // For password auth, we still want to use device passcode
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: "Verify it's you",
+        fallbackLabel: "Use device passcode",
+        disableDeviceFallback: false,
+      })
+
+      if (result.success) {
+        await authenticate()
+        router.replace("/(app)/home")
+      } else {
+        setAuthError("Authentication failed. Please try again.")
+      }
     } catch (error) {
       console.error('Password authentication error:', error)
       setAuthError("Authentication failed. Please try again.")
@@ -93,7 +107,7 @@ export default function AuthScreen() {
       end={{ x: 0, y: 1 }}
     >
       <View style={styles.contentContainer}>
-        <Text style={styles.headerText}>Unlock TaskBuddy</Text>
+        <Text style={styles.headerText}>Verify It's You</Text>
 
         <Animated.View
           style={[
@@ -108,9 +122,13 @@ export default function AuthScreen() {
           <View style={styles.ripple2} />
         </Animated.View>
 
-        <Text style={styles.subHeaderText}>Use your fingerprint or face ID</Text>
+        <Text style={styles.subHeaderText}>
+          Use your fingerprint or face ID to continue
+        </Text>
 
-        {authError ? <Text style={styles.errorText}>{authError}</Text> : null}
+        {authError ? (
+          <Text style={styles.errorText}>{authError}</Text>
+        ) : null}
 
         <TouchableOpacity 
           style={[styles.authButton, isLoading && styles.disabledButton]} 
@@ -132,7 +150,7 @@ export default function AuthScreen() {
           disabled={isLoading}
         >
           <Key size={16} color={COLORS.hotPink} style={styles.passwordIcon} />
-          <Text style={styles.passwordButtonText}>Use Password Instead</Text>
+          <Text style={styles.passwordButtonText}>Use Device Passcode</Text>
         </TouchableOpacity>
       </View>
     </LinearGradient>
@@ -194,9 +212,10 @@ const styles = StyleSheet.create({
   errorText: {
     fontFamily: "Poppins-Medium",
     fontSize: 14,
-    color: "#FF4D6D",
+    color: COLORS.hotPink,
     marginBottom: 20,
     textAlign: "center",
+    paddingHorizontal: 20,
   },
   authButton: {
     backgroundColor: COLORS.neonTeal,
