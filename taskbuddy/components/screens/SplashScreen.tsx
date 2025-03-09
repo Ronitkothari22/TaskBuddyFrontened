@@ -1,59 +1,53 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
-import { View, Text, StyleSheet, Animated, ActivityIndicator } from "react-native"
+import React, { useEffect } from "react"
+import { View, Text, StyleSheet, Animated } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
 import { COLORS } from "../../constants/theme"
-import { healthApi } from "@/services/api"
+import { Sparkles, Zap } from "lucide-react-native"
 
 export default function SplashScreen() {
-  // Animation values
   const fadeAnim = new Animated.Value(0)
   const scaleAnim = new Animated.Value(0.8)
-  const [isLoading, setIsLoading] = useState(true)
-  const [apiStatus, setApiStatus] = useState<string>('')
+  const glowAnim = new Animated.Value(0)
 
   useEffect(() => {
-    // Check API health
-    const checkApiHealth = async () => {
-      try {
-        const health = await healthApi.checkHealth();
-        setApiStatus(health.status);
-      } catch (error) {
-        console.log('API health check failed:', error);
-        setApiStatus('offline');
-      }
-    };
-
-    // Start animations
-    const startAnimations = () => {
+    Animated.sequence([
+      Animated.delay(500),
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 800,
+          duration: 1000,
           useNativeDriver: true,
         }),
         Animated.spring(scaleAnim, {
-          toValue: 1, 
+          toValue: 1,
           friction: 8,
           tension: 40,
           useNativeDriver: true,
         }),
-      ]).start(() => {
-        setIsLoading(false)
-      })
-    };
-
-    // Run both in parallel
-    Promise.all([
-      checkApiHealth(),
-      startAnimations()
-    ]);
+        // Subtle glow animation
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(glowAnim, {
+              toValue: 1,
+              duration: 1500,
+              useNativeDriver: false,
+            }),
+            Animated.timing(glowAnim, {
+              toValue: 0,
+              duration: 1500,
+              useNativeDriver: false,
+            }),
+          ])
+        ),
+      ]),
+    ]).start()
   }, [])
 
   return (
     <LinearGradient
-      colors={[COLORS.electricPurple || '#6200ee', COLORS.neonTeal || '#03dac6']}
+      colors={[COLORS.darkBackground, COLORS.deepPurple]}
       style={styles.container}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
@@ -67,23 +61,38 @@ export default function SplashScreen() {
           },
         ]}
       >
-        <View style={styles.logoCircle}>
-          <Text style={styles.checkmark}>✓</Text>
+        <View style={styles.logoWrapper}>
+          <LinearGradient
+            colors={[COLORS.neonTeal, COLORS.electricPurple]}
+            style={styles.logoCircle}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Sparkles 
+              size={24} 
+              color="#FFFFFF" 
+              style={[styles.sparkleTop]}
+            />
+            <Zap
+              size={24}
+              color="#FFFFFF"
+              style={styles.sparkleBottom}
+              fill="#FFFFFF"
+            />
+            <Animated.View 
+              style={[
+                styles.innerCircle,
+                {
+                  shadowOpacity: glowAnim,
+                }
+              ]}
+            >
+              <Text style={styles.logoLetter}>tb</Text>
+            </Animated.View>
+          </LinearGradient>
         </View>
         <Text style={styles.logoText}>TaskBuddy</Text>
-        
-        {isLoading && (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator 
-              size="large" 
-              color="#FFFFFF" 
-              style={styles.loader} 
-            />
-            <Text style={styles.statusText}>
-              {apiStatus === 'ok' ? 'Loading...' : 'Connecting...'}
-            </Text>
-          </View>
-        )}
+        <Text style={styles.tagline}>Level Up Your Productivity ⚡️</Text>
       </Animated.View>
     </LinearGradient>
   )
@@ -92,58 +101,80 @@ export default function SplashScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.darkBackground,
   },
   logoContainer: {
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  logoWrapper: {
+    marginBottom: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logoCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 15,
+    width: 130,
+    height: 130,
+    borderRadius: 35, // More squared corners for modern look
+    justifyContent: 'center',
+    alignItems: 'center',
     elevation: 10,
+    shadowColor: COLORS.neonTeal,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
-  checkmark: {
-    fontSize: 70,
+  innerCircle: {
+    width: 90,
+    height: 90,
+    borderRadius: 25, // Matching the outer circle style
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backdropFilter: 'blur(5px)',
+    shadowColor: COLORS.neonTeal,
+    shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 20,
+  },
+  logoLetter: {
+    fontSize: 42,
+    fontFamily: 'Poppins-Bold',
     color: '#FFFFFF',
-    fontWeight: 'bold',
-    textShadowColor: "rgba(0, 0, 0, 0.3)",
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 5,
+    letterSpacing: -2,
+    textTransform: 'lowercase', // More modern look
+  },
+  sparkleTop: {
+    position: 'absolute',
+    top: 15,
+    right: 15,
+  },
+  sparkleBottom: {
+    position: 'absolute',
+    bottom: 15,
+    left: 15,
   },
   logoText: {
-    fontSize: 42,
-    color: "#FFFFFF",
-    fontFamily: "Poppins-Bold",
-    textShadowColor: "rgba(0, 0, 0, 0.3)",
-    textShadowOffset: { width: 2, height: 2 },
-    textShadowRadius: 10,
-    marginBottom: 20,
-  },
-  loadingContainer: {
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  loader: {
-    marginBottom: 15,
-  },
-  statusText: {
+    fontSize: 44,
+    fontFamily: 'Poppins-Bold',
     color: '#FFFFFF',
-    fontSize: 18,
-    fontFamily: "Poppins-Medium",
-    textShadowColor: "rgba(0, 0, 0, 0.3)",
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 5,
-  }
+    marginBottom: 8,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+    letterSpacing: -2,
+  },
+  tagline: {
+    fontSize: 20,
+    fontFamily: 'Poppins-Regular',
+    color: COLORS.neonTeal,
+    opacity: 0.9,
+    marginTop: 8,
+    letterSpacing: 0.5,
+  },
 })
-
