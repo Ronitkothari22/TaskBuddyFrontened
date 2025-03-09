@@ -16,7 +16,7 @@ import { LinearGradient } from "expo-linear-gradient"
 import { router } from "expo-router"
 import { Sparkles, Mail, Lock, Eye, EyeOff } from "lucide-react-native"
 
-export default function SignUpScreen() {
+export default function SignUpScreen() { 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")

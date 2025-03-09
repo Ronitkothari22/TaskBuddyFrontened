@@ -1,24 +1,48 @@
 "use client"
 
-import { useState, useRef } from "react"
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, FlatList, Image } from "react-native"
+import { useState, useRef, useEffect } from "react"
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  TouchableOpacity, 
+  Animated, 
+  FlatList, 
+  Image,
+  ActivityIndicator,
+  RefreshControl
+} from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
 import { Plus, Menu, ChevronDown, ChevronUp, Briefcase } from "lucide-react-native"
 import { format, addDays, isSameDay } from "date-fns"
 import { COLORS } from "@/constants/theme"
-import { TASKS, JOB_APPLICATIONS } from "@/data/mockData"
+import { TASK_STATUS } from "@/constants/api"
 import TaskItem from "@/components/ui/TaskItem"
 import JobCard from "@/components/ui/JobCard"
 import CalendarDay from "@/components/ui/CalendarDay"
 import Sidebar from "@/components/ui/Sidebar"
+import { useData } from "@/contexts/DataContext"
+import { useAuth } from "@/contexts/AuthContext"
 
 export default function HomeScreen() {
-  const [tasks, setTasks] = useState(TASKS)
+  const { user } = useAuth()
+  const { 
+    tasks, 
+    isLoadingTasks, 
+    refreshTasks, 
+    updateTask,
+    jobs,
+    isLoadingJobs,
+    refreshJobs
+  } = useData()
+  
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [jobSectionExpanded, setJobSectionExpanded] = useState(true)
   const [sidebarVisible, setSidebarVisible] = useState(false)
-
+  const [refreshing, setRefreshing] = useState(false)
+ 
   const sidebarAnim = useRef(new Animated.Value(-300)).current
   const overlayAnim = useRef(new Animated.Value(0)).current
 
@@ -27,8 +51,23 @@ export default function HomeScreen() {
     .fill(0)
     .map((_, i) => addDays(new Date(), i - 3))
 
-  const toggleTaskCompletion = (id) => {
-    setTasks(tasks.map((task) => (task.id === id ? { ...task, completed: !task.completed } : task)))
+  // Refresh data when component mounts
+  useEffect(() => {
+    refreshData()
+  }, [])
+
+  const refreshData = async () => {
+    setRefreshing(true)
+    await Promise.all([refreshTasks(), refreshJobs()])
+    setRefreshing(false)
+  }
+
+  const toggleTaskCompletion = async (taskId: string, currentStatus: string) => {
+    const newStatus = currentStatus === TASK_STATUS.COMPLETED 
+      ? TASK_STATUS.PENDING 
+      : TASK_STATUS.COMPLETED
+    
+    await updateTask(taskId, { status: newStatus })
   }
 
   const toggleJobSection = () => {
@@ -68,6 +107,9 @@ export default function HomeScreen() {
     }
   }
 
+  // Get remaining tasks count
+  const remainingTasksCount = tasks.filter(task => task.status !== TASK_STATUS.COMPLETED).length
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -83,7 +125,7 @@ export default function HomeScreen() {
 
       {/* Greeting */}
       <View style={styles.greeting}>
-        <Text style={styles.greetingText}>Hey Alex 👋</Text>
+        <Text style={styles.greetingText}>Hey {user?.name?.split(' ')[0] || 'there'} 👋</Text>
         <Text style={styles.dateText}>{format(new Date(), "EEEE, MMMM d")}</Text>
       </View>
 
@@ -105,16 +147,37 @@ export default function HomeScreen() {
         />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={refreshData}
+            colors={[COLORS.neonTeal]}
+            tintColor={COLORS.neonTeal}
+          />
+        }
+      >
         {/* Tasks Section */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Today's Tasks</Text>
-          <Text style={styles.taskCount}>{tasks.filter((t) => !t.completed).length} remaining</Text>
+          <Text style={styles.taskCount}>{remainingTasksCount} remaining</Text>
         </View>
 
-        {tasks.map((task) => (
-          <TaskItem key={task.id} task={task} onToggle={() => toggleTaskCompletion(task.id)} />
-        ))}
+        {isLoadingTasks && !refreshing ? (
+          <ActivityIndicator color={COLORS.neonTeal} style={styles.loader} />
+        ) : tasks.length === 0 ? (
+          <Text style={styles.emptyText}>No tasks yet. Add your first task!</Text>
+        ) : (
+          tasks.map((task) => (
+            <TaskItem 
+              key={task.id} 
+              task={task} 
+              onToggle={() => toggleTaskCompletion(task.id, task.status)} 
+            />
+          ))
+        )}
 
         {/* Job Applications Section */}
         <TouchableOpacity style={styles.jobSectionHeader} onPress={toggleJobSection}>
@@ -127,9 +190,15 @@ export default function HomeScreen() {
 
         {jobSectionExpanded && (
           <View style={styles.jobsContainer}>
-            {JOB_APPLICATIONS.map((job) => (
-              <JobCard key={job.id} job={job} />
-            ))}
+            {isLoadingJobs && !refreshing ? (
+              <ActivityIndicator color={COLORS.hotPink} style={styles.loader} />
+            ) : jobs.length === 0 ? (
+              <Text style={styles.emptyText}>No job applications yet. Start your job hunt!</Text>
+            ) : (
+              jobs.map((job) => (
+                <JobCard key={job.id} job={job} />
+              ))
+            )}
           </View>
         )}
 
@@ -233,6 +302,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.neonTeal,
   },
+  loader: {
+    marginVertical: 20,
+  },
+  emptyText: {
+    fontFamily: "Poppins-Regular",
+    fontSize: 14,
+    color: "#9CA3AF",
+    textAlign: "center",
+    marginVertical: 20,
+  },
   jobSectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -252,17 +331,16 @@ const styles = StyleSheet.create({
   },
   jobSectionTitle: {
     fontFamily: "Poppins-Bold",
-    fontSize: 18,
-    color: COLORS.hotPink,
+    fontSize: 16,
+    color: "#FFFFFF",
   },
   jobsContainer: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   fab: {
     position: "absolute",
     bottom: 20,
     right: 20,
-    borderRadius: 30,
     elevation: 8,
     shadowColor: COLORS.neonTeal,
     shadowOffset: { width: 0, height: 4 },
@@ -270,16 +348,19 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
   fabGradient: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: "center",
     justifyContent: "center",
   },
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: "#000000",
-    zIndex: 1,
   },
 })
 

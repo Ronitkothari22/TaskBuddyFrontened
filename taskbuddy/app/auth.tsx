@@ -12,7 +12,7 @@ export default function AuthScreen() {
   const [authError, setAuthError] = useState("")
   const pulseAnim = new Animated.Value(1)
 
-  useEffect(() => {
+  useEffect(() => { 
     // Start the pulse animation
     Animated.loop(
       Animated.sequence([

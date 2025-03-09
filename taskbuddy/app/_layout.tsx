@@ -7,7 +7,9 @@ import * as SplashScreen from "expo-splash-screen"
 import { StatusBar } from "expo-status-bar"
 import { GestureHandlerRootView } from "react-native-gesture-handler"
 import { SafeAreaProvider } from "react-native-safe-area-context"
-
+import { AuthProvider } from "@/contexts/AuthContext"
+import { DataProvider } from "@/contexts/DataContext"
+ 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync()
 
@@ -35,18 +37,22 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <StatusBar style="light" />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: "#1A1A1A" },
-            animation: "fade",
-          }}
-        >
-          <Stack.Screen name="index" />
-          <Stack.Screen name="(auth)/signup" />
-          <Stack.Screen name="(auth)/auth" />
-          <Stack.Screen name="(app)/home" />
-        </Stack>
+        <AuthProvider>
+          <DataProvider>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: "#1A1A1A" },
+                animation: "fade",
+              }}
+            >
+              <Stack.Screen name="index" />
+              <Stack.Screen name="(auth)/signup" />
+              <Stack.Screen name="(auth)/auth" />
+              <Stack.Screen name="(app)/home" />
+            </Stack>
+          </DataProvider>
+        </AuthProvider>
       </GestureHandlerRootView>
     </SafeAreaProvider>
   )

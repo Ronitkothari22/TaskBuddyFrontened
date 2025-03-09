@@ -24,7 +24,7 @@ export default function CalendarDay({ date, isSelected, onSelect }) {
           isToday && !isSelected && styles.todayDateText,
         ]}
       >
-        {dayNumber}
+        {dayNumber} 
       </Text>
     </TouchableOpacity>
   )

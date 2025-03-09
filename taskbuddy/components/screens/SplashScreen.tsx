@@ -20,7 +20,7 @@ export default function SplashScreen() {
         useNativeDriver: true,
       }),
       Animated.spring(scaleAnim, {
-        toValue: 1,
+        toValue: 1, 
         friction: 8,
         tension: 40,
         useNativeDriver: true,

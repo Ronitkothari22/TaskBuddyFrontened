@@ -138,7 +138,7 @@ export default function HomeScreen() {
         >
           {dayNumber}
         </Text>
-      </TouchableOpacity>
+      </TouchableOpacity> 
     )
   }
 

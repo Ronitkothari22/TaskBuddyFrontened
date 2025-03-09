@@ -11,26 +11,48 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  ActivityIndicator,
 } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
 import { router } from "expo-router"
-import { Sparkles, Mail, Lock, Eye, EyeOff } from "lucide-react-native"
+import { Sparkles, Mail, Lock, Eye, EyeOff, User } from "lucide-react-native"
 import { COLORS } from "../../constants/theme"
+import { useAuth } from "@/contexts/AuthContext"
 
-export default function SignUpScreen() {
+export default function SignUpScreen() { 
+  const { signUp, isLoading } = useAuth()
+  const [name, setName] = useState("")
   const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [emailError, setEmailError] = useState("")
 
-  const handleSignUp = () => {
-    // In a real app, you would validate and create an account
-    router.replace("/(auth)/auth")
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email)
+  }
+
+  const handleSignUp = async () => {
+    // Validate inputs
+    if (!name.trim()) {
+      return
+    }
+
+    if (!email.trim()) {
+      setEmailError("Email is required")
+      return
+    }
+
+    if (!validateEmail(email)) {
+      setEmailError("Please enter a valid email")
+      return
+    }
+
+    setEmailError("")
+    
+    // Call the signup method from AuthContext
+    await signUp(email, name)
   }
 
   const handleLogin = () => {
-    // In a real app, this would navigate to login
     router.replace("/(auth)/auth")
   }
 
@@ -48,56 +70,51 @@ export default function SignUpScreen() {
 
         <View style={styles.formContainer}>
           <View style={styles.inputContainer}>
+            <User size={20} color={COLORS.neonTeal} style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Full Name"
+              placeholderTextColor="#9CA3AF"
+              value={name}
+              onChangeText={setName}
+              autoCapitalize="words"
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
             <Mail size={20} color={COLORS.neonTeal} style={styles.inputIcon} />
             <TextInput
               style={styles.input}
               placeholder="Email"
               placeholderTextColor="#9CA3AF"
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(text) => {
+                setEmail(text)
+                if (emailError) setEmailError("")
+              }}
               keyboardType="email-address"
               autoCapitalize="none"
             />
           </View>
+          {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
 
-          <View style={styles.inputContainer}>
-            <Lock size={20} color={COLORS.neonTeal} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              placeholderTextColor="#9CA3AF"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-            />
-            <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-              {showPassword ? <EyeOff size={20} color="#9CA3AF" /> : <Eye size={20} color="#9CA3AF" />}
-            </Pressable>
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Lock size={20} color={COLORS.neonTeal} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Confirm Password"
-              placeholderTextColor="#9CA3AF"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry={!showConfirmPassword}
-            />
-            <Pressable onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeIcon}>
-              {showConfirmPassword ? <EyeOff size={20} color="#9CA3AF" /> : <Eye size={20} color="#9CA3AF" />}
-            </Pressable>
-          </View>
-
-          <TouchableOpacity style={styles.signUpButton} activeOpacity={0.8} onPress={handleSignUp}>
+          <TouchableOpacity 
+            style={[styles.signUpButton, isLoading && styles.disabledButton]} 
+            activeOpacity={0.8} 
+            onPress={handleSignUp}
+            disabled={isLoading}
+          >
             <LinearGradient
               colors={[COLORS.neonTeal, "#00CCAA"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.gradientButton}
             >
-              <Text style={styles.buttonText}>Sign Up</Text>
+              {isLoading ? (
+                <ActivityIndicator color={COLORS.darkBackground} size="small" />
+              ) : (
+                <Text style={styles.buttonText}>Sign Up</Text>
+              )}
             </LinearGradient>
           </TouchableOpacity>
 
@@ -163,8 +180,13 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins-Regular",
     fontSize: 16,
   },
-  eyeIcon: {
-    padding: 8,
+  errorText: {
+    color: "#FF4D6D",
+    fontFamily: "Poppins-Regular",
+    fontSize: 14,
+    marginTop: -8,
+    marginBottom: 16,
+    marginLeft: 4,
   },
   signUpButton: {
     marginTop: 8,
@@ -175,6 +197,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
+  },
+  disabledButton: {
+    opacity: 0.7,
   },
   gradientButton: {
     paddingVertical: 16,

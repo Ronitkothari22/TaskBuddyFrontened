@@ -1,19 +1,20 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { View, Text, StyleSheet, TouchableOpacity, Animated } from "react-native"
+import { View, Text, StyleSheet, TouchableOpacity, Animated, ActivityIndicator } from "react-native"
 import { LinearGradient } from "expo-linear-gradient"
 import { router } from "expo-router"
 import * as LocalAuthentication from "expo-local-authentication"
 import { Fingerprint, Key } from "lucide-react-native"
 import { COLORS } from "../../constants/theme"
+import { useAuth } from "@/contexts/AuthContext"
 
 export default function AuthScreen() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const { authenticate, isLoading } = useAuth()
   const [authError, setAuthError] = useState("")
   const pulseAnim = new Animated.Value(1)
 
-  useEffect(() => {
+  useEffect(() => { 
     // Start the pulse animation
     Animated.loop(
       Animated.sequence([
@@ -34,54 +35,54 @@ export default function AuthScreen() {
     handleAuthentication()
   }, [])
 
-  useEffect(() => {
-    // Navigate to home if authenticated
-    if (isAuthenticated) {
-      const timer = setTimeout(() => {
-        router.replace("/(app)/home")
-      }, 1000)
-      return () => clearTimeout(timer)
-    }
-  }, [isAuthenticated])
-
   const handleAuthentication = async () => {
     try {
       // Check if device has biometric hardware
       const hasHardware = await LocalAuthentication.hasHardwareAsync()
       if (!hasHardware) {
-        setAuthError("This device does not support biometric authentication")
+        // If no biometric hardware, just authenticate with device ID
+        await authenticate()
+        router.replace("/(app)/home")
         return
       }
 
       // Check if biometrics are enrolled
       const isEnrolled = await LocalAuthentication.isEnrolledAsync()
       if (!isEnrolled) {
-        setAuthError("No biometrics found. Please set up biometrics in your device settings")
+        // If no biometrics enrolled, just authenticate with device ID
+        await authenticate()
+        router.replace("/(app)/home")
         return
       }
 
-      // Authenticate
+      // Authenticate with biometrics
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: "Authenticate to access TaskBuddy",
         fallbackLabel: "Use passcode",
       })
 
       if (result.success) {
-        setIsAuthenticated(true)
-        setAuthError("")
+        // If biometric auth succeeds, authenticate with the API
+        await authenticate()
+        router.replace("/(app)/home")
       } else {
         setAuthError(result.error || "Authentication failed")
       }
     } catch (error) {
+      console.error('Authentication error:', error)
       setAuthError("An error occurred during authentication")
-      console.error(error)
     }
   }
 
-  const handlePasswordAuth = () => {
-    // In a real app, this would show a password input
-    // For demo purposes, we'll just navigate to home
-    router.replace("/(app)/home")
+  const handlePasswordAuth = async () => {
+    try {
+      // Skip biometrics and just authenticate with device ID
+      await authenticate()
+      router.replace("/(app)/home")
+    } catch (error) {
+      console.error('Password authentication error:', error)
+      setAuthError("Authentication failed. Please try again.")
+    }
   }
 
   return (
@@ -111,11 +112,25 @@ export default function AuthScreen() {
 
         {authError ? <Text style={styles.errorText}>{authError}</Text> : null}
 
-        <TouchableOpacity style={styles.authButton} activeOpacity={0.8} onPress={handleAuthentication}>
-          <Text style={styles.authButtonText}>Try Again</Text>
+        <TouchableOpacity 
+          style={[styles.authButton, isLoading && styles.disabledButton]} 
+          activeOpacity={0.8} 
+          onPress={handleAuthentication}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator color={COLORS.darkBackground} size="small" />
+          ) : (
+            <Text style={styles.authButtonText}>Try Again</Text>
+          )}
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.passwordButton} activeOpacity={0.8} onPress={handlePasswordAuth}>
+        <TouchableOpacity 
+          style={[styles.passwordButton, isLoading && styles.disabledButton]} 
+          activeOpacity={0.8} 
+          onPress={handlePasswordAuth}
+          disabled={isLoading}
+        >
           <Key size={16} color={COLORS.hotPink} style={styles.passwordIcon} />
           <Text style={styles.passwordButtonText}>Use Password Instead</Text>
         </TouchableOpacity>
@@ -191,6 +206,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     width: "100%",
     alignItems: "center",
+  },
+  disabledButton: {
+    opacity: 0.7,
   },
   authButtonText: {
     fontFamily: "Poppins-Bold",

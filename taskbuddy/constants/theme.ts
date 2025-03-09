@@ -7,3 +7,4 @@ export const COLORS = {
   deepPurple: "#4B0082",
 }
 
+ 
