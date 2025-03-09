@@ -60,16 +60,14 @@ interface JobsResponse {
   jobs: Job[];
 }
 
-// Error handling
-class ApiError extends Error {
-  status: number;
-  errors?: any[];
-
-  constructor(message: string, status: number, errors?: any[]) {
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+    public errors?: any
+  ) {
     super(message);
     this.name = 'ApiError';
-    this.status = status;
-    this.errors = errors;
   }
 }
 
@@ -91,23 +89,26 @@ async function apiRequest<T>(
   retryCount: number = 0
 ): Promise<T> {
   try {
-    // Build request headers
+    const url = `${API_BASE_URL}${endpoint}`;
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
     };
 
-    // Add device ID for authenticated requests
     if (requiresAuth) {
       const deviceId = await getDeviceId();
+      if (!deviceId) {
+        throw new ApiError('No device ID found', 401);
+      }
       headers['x-device-id'] = deviceId;
     }
 
-    // Build request options
-    const options: RequestInit = {
+    const response = await fetch(url, {
       method,
       headers,
-    };
+      body: body ? JSON.stringify(body) : undefined
+    });
 
+<<<<<<< HEAD
     // Add body for non-GET requests
     if (body && method !== 'GET') {
       options.body = JSON.stringify(body);
@@ -157,6 +158,16 @@ async function apiRequest<T>(
       }
 
       throw error;
+=======
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new ApiError(
+        data.message || 'An error occurred',
+        response.status,
+        data.errors
+      );
+>>>>>>> refs/remotes/origin/development
     }
   } catch (error: any) {
     if (error instanceof ApiError) {

@@ -1,8 +1,13 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { Alert } from 'react-native';
 import { router } from 'expo-router';
+<<<<<<< HEAD
 import { authApi, User } from '@/services/api';
 import { getDeviceId, clearDeviceId, storeUserData, getUserData, clearUserData } from '@/utils/deviceId';
+=======
+import { authApi, User, ApiError } from '@/services/api';
+import { getDeviceId, clearDeviceId } from '@/utils/deviceId';
+>>>>>>> refs/remotes/origin/development
 
 interface AuthContextType {
   user: User | null;
@@ -36,6 +41,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
+<<<<<<< HEAD
         setIsLoading(true);
         
         // First try to load cached user data
@@ -47,14 +53,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           // Don't set isLoading to false here - wait for local auth
           router.replace('/(auth)/auth');
           return;
+=======
+        const deviceId = await getDeviceId();
+        if (deviceId) {
+          // Try to authenticate with the device ID
+          await authenticate();
+>>>>>>> refs/remotes/origin/development
         }
         
         // If no cached data, user needs to sign up
         console.log('No cached user, redirecting to signup');
         router.replace('/(auth)/signup');
       } catch (error) {
+<<<<<<< HEAD
         console.log('Auth check failed - user needs to sign up');
         router.replace('/(auth)/signup');
+=======
+        // Don't log as error if it's just a "User not found" case
+        if (error instanceof ApiError && error.message === 'User not found') {
+          console.log('No existing user found, proceeding to signup');
+        } else {
+          console.error('Authentication check failed:', error);
+        }
+>>>>>>> refs/remotes/origin/development
       } finally {
         setIsLoading(false);
       }
