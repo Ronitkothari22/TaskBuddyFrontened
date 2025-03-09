@@ -2,7 +2,15 @@ import { TouchableOpacity, Text, StyleSheet } from "react-native"
 import { format, isSameDay } from "date-fns"
 import { COLORS } from "../../constants/theme"
 
-export default function CalendarDay({ date, isSelected, onSelect }) {
+export default function CalendarDay({ 
+  date, 
+  isSelected, 
+  onSelect 
+}: {
+  date: Date,
+  isSelected: boolean,
+  onSelect: () => void
+}) {
   const dayName = format(date, "EEE")
   const dayNumber = format(date, "d")
   const isToday = isSameDay(date, new Date())

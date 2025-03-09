@@ -68,7 +68,7 @@ export default function HomeScreen() {
     .fill(0)
     .map((_, i) => addDays(new Date(), i - 3))
 
-  const toggleTaskCompletion = (id) => {
+  const toggleTaskCompletion = (id: string) => {
     setTasks(tasks.map((task) => (task.id === id ? { ...task, completed: !task.completed } : task)))
   }
 
@@ -109,7 +109,7 @@ export default function HomeScreen() {
     }
   }
 
-  const renderDateItem = ({ item }) => {
+  const renderDateItem = ({ item }: { item: Date }) => {
     const isSelected = isSameDay(item, selectedDate)
     const dayName = format(item, "EEE")
     const dayNumber = format(item, "d")
