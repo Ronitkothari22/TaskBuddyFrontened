@@ -1,4 +1,6 @@
-export const API_BASE_URL = 'http://localhost:3000'; // Replace with your actual API base URL
+export const API_BASE_URL = __DEV__ 
+  ? 'http://192.168.0.102:3000'  // Your computer's WiFi IP address
+  : 'https://your-production-api.com'; 
 
 // Auth endpoints
 export const ENDPOINTS = {

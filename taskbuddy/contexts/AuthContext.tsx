@@ -1,7 +1,7 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { Alert } from 'react-native';
 import { router } from 'expo-router';
-import { authApi, User } from '@/services/api';
+import { authApi, User, ApiError } from '@/services/api';
 import { getDeviceId, clearDeviceId } from '@/utils/deviceId';
 
 interface AuthContextType {
@@ -35,14 +35,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // Check if we have a device ID
         const deviceId = await getDeviceId();
         if (deviceId) {
           // Try to authenticate with the device ID
           await authenticate();
         }
       } catch (error) {
-        console.error('Authentication check failed:', error);
+        // Don't log as error if it's just a "User not found" case
+        if (error instanceof ApiError && error.message === 'User not found') {
+          console.log('No existing user found, proceeding to signup');
+        } else {
+          console.error('Authentication check failed:', error);
+        }
       } finally {
         setIsLoading(false);
       }
